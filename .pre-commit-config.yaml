@@ -1,0 +1,12 @@
+# Run all test, linters, and other code checks before committing and pushing:
+fail_fast: true
+repos:
+  # Checks defined in the `./Makefile`:
+  - repo: "local"
+    hooks:
+      - id: "test"
+        name: "test"
+        stages: ["commit", "merge-commit", "push", "manual"]
+        entry: "make -j test"
+        language: "system"
+        pass_filenames: false
