@@ -1,6 +1,6 @@
 ---
-id: 3changtrai
-name: 3ChangTrai
+id: 3changtrai-cookie
+name: 3ChangTrai Cookie
 description: "3ChangTrai (3CT) is a VIETNAMESE Private Torrent Tracker for HD MOVIES / TV / GENERAL"
 language: vi-VN
 type: private
@@ -30,12 +30,11 @@ caps:
     book-search: [q]
 
 settings:
-  - name: username
+  - name: cookie
     type: text
-    label: Username
-  - name: password
-    type: password
-    label: Password
+    label: Cookie
+  - name: info_cookie
+    type: info_cookie
   - name: freeleech
     type: checkbox
     label: Search freeleech only
@@ -68,23 +67,12 @@ settings:
     default: "Cherish your account. Inactive accounts will be deleted based on the following provisions:<ol><li>Nexus Master or later will not be deleted account.</li><li>Veteran User or higher will not be deleted if temporarily locked (at User Settings).</li><li>Temporarily locked accounts will be deleted if not logged in within 90 days.</li><li>Accounts that are not temporarily locked will be deleted if they do not log in within 60 days.</li><li>Accounts with no storage for uploads and downloads will be deleted if they do not log in within 30 days or have registered within 14 days.</li></ol>"
 
 login:
-  path: login.php
-  method: form
-  form: form[action="takelogin.php"]
-  captcha:
-    type: image
-    selector: img[alt="CAPTCHA"]
-    input: imagestring
+  # using cookie method because takelogin.php fails:
+  #     HTTP request failed:
+  #     [500:InternalServerError] [POST] at [http://flaresolverr:8191/v1]
+  method: cookie
   inputs:
-    username: "{{ .Config.username }}"
-    password: "{{ .Config.password }}"
-    logout: ""
-    securelogin: ""
-    ssl: yes
-    trackerssl: yes
-  error:
-    - selector: td.embedded:has(h2:contains("Đăng nhập thất bại!")) # Login failed!
-    - selector: td.embedded:has(h2:contains("Thất bại")) # Failure (captcha)
+    cookie: "{{ .Config.cookie }}"
   test:
     path: index.php
     selector: a[href="logout.php"]
