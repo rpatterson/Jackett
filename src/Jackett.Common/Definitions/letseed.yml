@@ -108,11 +108,32 @@ login:
     password: "{{ .Config.password }}"
     logout: ""
   error:
-    - selector: '[http-equiv="refresh"][content*="/login.php"]'
-      # TODO: This tracker uses `http-equiv="refresh"` for all login form submissions,
-      # valid or invalid, and uses the `error=#` query parameter to tell the subsequent
-      # login form what error message to display. How should this definition yield a
-      # useful error message?
+    - selector: >-
+        [http-equiv="refresh"][content*="/login.php?error=1"]
+      message:
+        text: >-
+          HATA: Geçersiz kullanıcı adı veya şifre! Lütfen tekrar eneyin veya
+          buraya tıklayarak şifrenizi sıfırlayınız.
+    - selector: >-
+        [http-equiv="refresh"][content*="/login.php?error=2"]
+      message:
+        text: >-
+          HATA: Girdiğiniz resim doğrulama kodu onaylanmadı.
+    - selector: >-
+        [http-equiv="refresh"][content*="/login.php?error=3"]
+      message:
+        text: >-
+          HATA: Lütfen gerekli alanları boş bırakmayınız!
+    - selector: >-
+        [http-equiv="refresh"][content*="/login.php?error=4"]
+      message:
+        text: >-
+          HATA: Kullanıcı adı veya şifre hatalı!
+    - selector: >-
+        [http-equiv="refresh"][content*="/login.php?error="]
+      message:
+        text: >-
+          HATA: Something went wrong during login!
   test:
     path: browse.php
     selector: a[href*="/logout.php"]
