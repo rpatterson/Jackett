@@ -1,0 +1,44 @@
+{
+  "name": "@Jackett/Jackett",
+  "scope": "@Jackett",
+  "version": "0.0.0",
+  "description": "API Support for your favorite torrent trackers",
+  "scripts": {
+    "validate:definitons": "ajv test -d 'src/Jackett.Common/Definitions/*.yml' -s 'src/Jackett.Common/Definitions/schema.json' --valid --all-errors -c ajv-formats --spec=draft2019"
+  },
+  "keywords": [
+    "api",
+    "rss",
+    "torrent",
+    "couchpotato",
+    "proxy",
+    "sonarr",
+    "indexer",
+    "rss-proxy",
+    "medusa",
+    "sickrage",
+    "torznab",
+    "newznab",
+    "radarr",
+    "trackers",
+    "hacktoberfest",
+    "duckietv",
+    "jackett",
+    "lidarr",
+    "mylar3",
+    "nefarious"
+  ],
+  "license": "GPL-2.0",
+  "author": {
+    "name": "Jackett",
+    "url": "https://github.com/Jackett/Jackett"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jackett/Jackett.git"
+  },
+  "devDependencies": {
+    "ajv-cli-servarr": "^5.0.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
