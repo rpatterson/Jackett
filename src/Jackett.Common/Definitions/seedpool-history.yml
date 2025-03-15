@@ -1,25 +1,42 @@
 ---
-id: "asiancinema"
-name: "AsianCinema"
-description: "Tracker Movies/TV/Music"
+id: "seedpool-history"
+name: "seedpool (history)"
+description: "seedpool user's torrent history plus site-wide user data"
 language: "en-US"
 type: "private"
 encoding: "UTF-8"
 links:
-  - "https://eiga.moi/"
-legacylinks:
-  - "https://asiancinema.me/"
+  - "https://seedpool.org/"
 
 caps:
+
   categorymappings:
-    - {id: 1, cat: "Movies", desc: "Movies"}
-    - {id: 2, cat: "TV", desc: "TV"}
-    - {id: 3, cat: "Audio", desc: "Music"}
+    # TODO: Canonicalize these categories as much as possible into the various
+    # "standards", conventions, and tools involved:
+    # - `901###` = "User/*"
+    # - `9011##` = "User/Site-*"
+    # - `9016##` = "User/History-*"
+    - {id: 901000, cat: "Other/Misc", desc: "User"}
+    - {id: 901100, cat: "Other/Misc", desc: "User/Site"}
+    - {id: 901600, cat: "Other/Misc", desc: "User/History"}
+    - {id: 901610, cat: "Other/Misc", desc: "User/Unsatisfieds"}
+    - {id: 901620, cat: "Other/Misc", desc: "User/Active"}
+    - {id: 901630, cat: "Other/Misc", desc: "User/Completed"}
+    - {id: 901640, cat: "Other/Misc", desc: "User/Prewarned"}
+    - {id: 901650, cat: "Other/Misc", desc: "User/HnR"}
+    - {id: 901660, cat: "Other/Misc", desc: "User/Immune"}
+    - {id: 901670, cat: "Other/Misc", desc: "User/Uploaded"}
+    - {id: 901680, cat: "Other/Misc", desc: "User/Downloaded"}
+    - {id: 901690, cat: "Other/Misc", desc: "User/Downloaded"}
+    - {id: 901700, cat: "Other/Misc", desc: "User/Pending"}
+    - {id: 901710, cat: "Other/Misc", desc: "User/Approved"}
+    - {id: 901720, cat: "Other/Misc", desc: "User/Rejected"}
+    - {id: 901730, cat: "Other/Misc", desc: "User/Postponed"}
 
   modes:
     search: ["q"]
-    tv-search: ["q", "season", "ep", "imdbid", "tvdbid", "tmdbid"]
-    movie-search: ["q", "imdbid", "tmdbid"]
+    tv-search: ["q"]
+    movie-search: ["q"]
     music-search: ["q"]
 
 settings:
@@ -29,30 +46,62 @@ settings:
   - name: "password"
     type: "password"
     label: "Password"
-  - name: "freeleech"
-    type: "checkbox"
-    label: "Search freeleech only"
-    default: "false"
-  - name: "sort"
-    type: "select"
-    label: "Sort requested from site"
-    default: "created_at"
+  - name: "filters"
+    label: "Filter user history on current torrent status"
+    type: "multi-select"
+    defaults:
+      - "Unsatisfieds"
     options:
-      created_at: "created"
-      seeders: "seeders"
-      size: "size"
-      name: "title"
-  - name: "type"
+      unsatisfied: "Unsatisfieds"
+      active: "Active"
+      completed: "Completed"
+      prewarn: "Prewarned?"
+      hitrun: "H&R?"
+      immune: "Immune?"
+      uploaded: "Uploaded"
+      downloaded: "Downloaded"
+  - name: "status"
+    label: "Filter user history on moderation status"
+    type: "multi-select"
+    defaults: []
+    options:
+      0: "Pending"
+      1: "Approved"
+      2: "Rejected"
+      3: "Postponed"
+  - name: "sortField"
     type: "select"
-    label: "Order requested from site"
-    default: "desc"
+    label: "Sort on the selected fields"
+    default: "seedtime"
+    options:
+      name: "Name"
+      seeders: "Seeders"
+      leechers: "Leechers"
+      times_completed: "Completed"
+      agent: "Client"
+      size: "Size"
+      actual_uploaded: "Upload"
+      actual_downloaded: "Download"
+      actual_ratio: "Ratio"
+      leechtime: "Leeched"
+      seedtime: "Seeded"
+      created_at: "Started"
+      updated_at: "Updated"
+      completed_at: "Completed"
+      prewarned_at: "Prewarned?"
+      seeding: "Seeding"
+      leeching: "Leeching"
+      hitrun: "H&R?"
+      immune: "Immune?"
+      uploaded: "Uploaded"
+      status: "Approved"
+  - name: "sortDirection"
+    type: "select"
+    label: "Sort direction"
+    default: "asc"
     options:
       desc: "desc"
       asc: "asc"
-  - name: "info_activity"
-    type: "info"
-    label: "Account Inactivity"
-    default: "Your account will be automatically deleted from the database after 90 days of inactivity. If you return or visit the site with your account before that amount of time passes, then the inactivity timer will reset and your account will be fine for another 90 days.<br>Keep in mind that 'activity' is considered a visit to any page and that torrent traffic is not counted as account activity. In order to reset the inactivity timer all you have to do is visit a single page while logged in with your account. If your account is deleted for inactivity, please do not ask the site staff to un-delete it for you. The deletion is performed automatically by the server and, as such, your account cannot be recovered after it has been deleted."
 
 login:
   # note APIKEY is broken on this 5.3.0 site
@@ -60,24 +109,40 @@ login:
   method: "form"
   form: >-
     form[action$="/login"]
+  selectors: true
   inputs:
-    username: >-
+    input[id="username"]: >-
       {{ .Config.username }}
-    password: >-
+    input[id="passwordpassword"]: >-
       {{ .Config.password }}
-    remember: on
+    input[name="remember"]: on
+    input[id="_username"]: ""
   selectorinputs:
-    _token:
+    input[id="_token"]:
       selector: >-
         input[name="_token"]
       attribute: "value"
+    input[id="_captcha"]:
+      selector: >-
+        input[name="_captcha"]
+      attribute: "value"
+    'input[type="hidden"]:not([id="_token"], [id="_captcha"])':
+      selector: >-
+        input[type="hidden"]:not([id="_token"], [id="_captcha"])
+      attribute: "value"
   error:
     - selector: >-
-        div#ERROR_COPY
+        .auth-form__errors
+  test:
+    path: >-
+      /users/{{ .Config.username }}/torrents?showMorePrecision=true
+    selector: >-
+      form[action*="/logout"]
 
 search:
   paths:
-    - path: "torrents/filter"
+    - path: >-
+        /users/{{ .Config.username }}/torrents?showMorePrecision=true
   inputs:
     $raw: >-
       {{ range .Categories }}categories[]={{.}}&{{end}}
@@ -91,9 +156,9 @@ search:
     tmdb: >-
       {{ .Query.TMDBID }}
     sorting: >-
-      {{ .Config.sort }}
+      {{ .Config.sortField }}
     direction: >-
-      {{ .Config.type }}
+      {{ .Config.sortDirection }}
     qty: 100
     freeleech: >-
       {{ if .Config.freeleech }}1{{ else }}{{ end }}
