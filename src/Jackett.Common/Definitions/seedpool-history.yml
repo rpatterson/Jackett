@@ -13,26 +13,21 @@ caps:
   categorymappings:
     # TODO: Canonicalize these categories as much as possible into the various
     # "standards", conventions, and tools involved:
-    # - `901###` = "User/*"
-    # - `9011##` = "User/Site-*"
-    # - `9014##` = "User/History-*"
-    # - `9017##` = "User/Moderation-*"
-    - {id: 901000, cat: "Other/Misc", desc: "User"}
-    - {id: 901100, cat: "Other/Misc", desc: "User/Site"}
-    - {id: 901400, cat: "Other/Misc", desc: "User/History"}
-    - {id: 901410, cat: "Other/Misc", desc: "User/History-Unsatisfieds"}
-    - {id: 901420, cat: "Other/Misc", desc: "User/History-Active"}
-    - {id: 901430, cat: "Other/Misc", desc: "User/History-Completed"}
-    - {id: 901440, cat: "Other/Misc", desc: "User/History-Prewarned"}
-    - {id: 901450, cat: "Other/Misc", desc: "User/History-HnR"}
-    - {id: 901460, cat: "Other/Misc", desc: "User/History-Immune"}
-    - {id: 901470, cat: "Other/Misc", desc: "User/History-Uploaded"}
-    - {id: 901480, cat: "Other/Misc", desc: "User/History-Downloaded"}
-    - {id: 901700, cat: "Other/Misc", desc: "User/Moderation"}
-    - {id: 901710, cat: "Other/Misc", desc: "User/Moderation-Pending"}
-    - {id: 901720, cat: "Other/Misc", desc: "User/Moderation-Approved"}
-    - {id: 901730, cat: "Other/Misc", desc: "User/Moderation-Rejected"}
-    - {id: 901740, cat: "Other/Misc", desc: "User/Moderation-Postponed"}
+    # - `9###` = "User/*"
+    # - `91##` = "User/Site-*"
+    # - `94##` = "User/History-*"
+    # - `97##` = "User/Moderation-*"
+    - {id: 9000, cat: "Other/Misc", desc: "User"}
+    - {id: 9100, cat: "Other/Misc", desc: "User/Site"}
+    - {id: 9400, cat: "Other/Misc", desc: "User/History"}
+    - {id: "unsatisfied", cat: "Other/Misc", desc: "User/History-Unsatisfieds"}
+    - {id: "active", cat: "Other/Misc", desc: "User/History-Active"}
+    - {id: "completed", cat: "Other/Misc", desc: "User/History-Completed"}
+    - {id: "prewarn", cat: "Other/Misc", desc: "User/History-Prewarned"}
+    - {id: "hitrun", cat: "Other/Misc", desc: "User/History-HnR"}
+    - {id: "immune", cat: "Other/Misc", desc: "User/History-Immune"}
+    - {id: "uploaded", cat: "Other/Misc", desc: "User/History-Uploaded"}
+    - {id: "downloaded", cat: "Other/Misc", desc: "User/History-Downloaded"}
 
   modes:
     search: ["q"]
@@ -47,29 +42,6 @@ settings:
   - name: "password"
     type: "password"
     label: "Password"
-  - name: "filters"
-    label: "Filter user history on current torrent status"
-    type: "multi-select"
-    defaults:
-      - "Unsatisfieds"
-    options:
-      unsatisfied: "Unsatisfieds"
-      active: "Active"
-      completed: "Completed"
-      prewarn: "Prewarned?"
-      hitrun: "H&R?"
-      immune: "Immune?"
-      uploaded: "Uploaded"
-      downloaded: "Downloaded"
-  - name: "statuses"
-    label: "Filter user history on moderation status"
-    type: "multi-select"
-    defaults: []
-    options:
-      0: "Pending"
-      1: "Approved"
-      2: "Rejected"
-      3: "Postponed"
   - name: "sortField"
     type: "select"
     label: "Sort on the selected fields"
@@ -145,9 +117,13 @@ search:
       inputs:
         showMorePrecision: "true"
   inputs:
-    $raw: >-
-      {{ range .Categories }}categories[]={{.}}&{{end}}
-    # for dashboard imdbid search
+    # Use quotes instead of block scalars to control whitespace across lines:
+    $raw: "\
+      {{ range .Categories }}\
+      {{ if and (ne . \"9000\") (ne . \"9100\") (ne . \"9400\") }}\
+      &{{.}}=include\
+      {{ end }}\
+      {{end}}"
     search: >-
       {{ .Keywords }}
     sortField: >-
@@ -165,14 +141,8 @@ search:
   fields:
     category:
       text: >-
-        {{ if .Query.Categories }}
-          {{ .Query.Categories[0] }}
-        {{ else }}
-          {{ if .Config.filters }}
-            {{ .Config.filters[0] }}
-          {{ else }}
-            {{ if .Config.statuses }}{{ .Config.statuses[0] }}{{ end }}
-          {{ end }}
+        {{ if .Categories }}
+          {{ .Categories.0 }}
         {{ end }}"
     title:
       selector: >-
