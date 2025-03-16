@@ -168,96 +168,116 @@ search:
     grabs:
       selector: >-
         .user-torrents__times
-    agent:
+    _agent:
       selector: >-
         .user-torrents__agent
     size:
       selector: >-
         .user-torrents__size
-    uploadactual:
+    _uploadActual:
       selector: >-
         .user-torrents__upload span:nth-child(1)
-    uploadcredited:
+    _uploadCredited:
       selector: >-
         .user-torrents__upload span:nth-child(2)
-    downloadactual:
+    _downloadActual:
       selector: >-
         .user-torrents__download span:nth-child(1)
-    downloadcredited:
+    _downloadCredited:
       selector: >-
         .user-torrents__download span:nth-child(2)
-    ratioactual:
+    _ratioActual:
       selector: >-
         .user-torrents__ratio span:nth-child(1)
-    ratiocredited:
+    _ratioCredited:
       selector: >-
         .user-torrents__ratio span:nth-child(2)
-    leechtime:
+    _leechTime:
       selector: >-
         .user-torrents__leechtime
-    seedtime:
+    _seedTime:
       selector: >-
         .user-torrents__seedtime
-    createdat:
+    _createdAt:
       selector: >-
         .user-torrents__created-at
     date:
       text: >-
-        {{ .Result.createdat }}
-    updatedat:
+        {{ .Result._createdAt }}
+    _updatedAt:
       selector: >-
         .user-torrents__updated-at
-    completedat:
+    _completedAt:
       selector: >-
         .user-torrents__completed-at
-    prewarnedat:
+    _prewarnedAt:
       selector: >-
         .user-torrents__prewarned-at
-    seeding:
+    _seeding:
       selector: >-
         .user-torrents__seeding [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    leeching:
+    _leeching:
       selector: >-
         .user-torrents__leeching [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    warned:
+    _warned:
       selector: >-
         .user-torrents__warned [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    immune:
+    _immune:
       selector: >-
         .user-torrents__immune [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    uploader:
+    _uploader:
       selector: >-
         .user-torrents__uploader [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    status:
+    _status:
       selector: >-
         .user-torrents__status [title]
       attribute: "title"
       case:
         "Not *": "false"
         "*": "true"
-    # description:
-    #   text: |
-    #     TODO: JSON for unsupported fields?
+    description:
+      text: |
+        {
+          "agent": "{{ .Result._agent }}",
+          "uploadActual": "{{ .Result._uploadActual }}",
+          "uploadCredited": "{{ .Result._uploadCredited }}",
+          "downloadActual": "{{ .Result._downloadActual }}",
+          "downloadCredited": "{{ .Result._downloadCredited }}",
+          "ratioActual": "{{ .Result._ratioActual }}",
+          "ratioCredited": "{{ .Result._ratioCredited }}",
+          "leechTime": "{{ .Result._leechTime }}",
+          "seedTime": "{{ .Result._seedTime }}",
+          "createdAt": "{{ .Result._createdAt }}",
+          "updatedAt": "{{ .Result._updatedAt }}",
+          "completedAt": "{{ .Result._completedAt }}",
+          "prewarnedAt": "{{ .Result._prewarnedAt }}",
+          "seeding": "{{ .Result._seeding }}",
+          "leeching": "{{ .Result._leeching }}",
+          "warned": "{{ .Result._warned }}",
+          "immune": "{{ .Result._immune }}",
+          "uploader": "{{ .Result._uploader }}",
+          "status": "{{ .Result._status }}"
+        }
     downloadvolumefactor:
       text: "1"
     uploadvolumefactor:
