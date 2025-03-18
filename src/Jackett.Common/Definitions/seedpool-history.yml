@@ -201,10 +201,6 @@ search:
       selector: >-
         .user-torrents__leechtime
       optional: true
-    _historySeedTimeUnsatisfied:
-      selector: >-
-        .user-torrents__seedtime .text-red
-      optional: true
     _historyUpdatedAt:
       selector: >-
         .user-torrents__updated-at:not(:contains("N/A"))
@@ -262,18 +258,22 @@ search:
 
     # Fields that are mapped to Cardigann row fields:
     category:
-      text: "\
-        {{ if .Result._siteUsername }}9100{{ else }}{{ end }}\
-        {{ if .Result._historySeedTimeUnsatisfied }}unsatisfied{{ else }}{{ end }}\
-        {{ if or .Result._historyLeeching .Result._historySeeding }}active{{ else }}\
-        {{ end }}\
-        {{ if .Result._historyCompletedAt }}completed{{ else }}{{ end }}\
-        {{ if .Result._historyPrewarnedAt }}prewarn{{ else }}{{ end }}\
-        {{ if .Result._historyWarned }}hitrun{{ else }}{{ end }}\
-        {{ if .Result._historyImmune }}immune{{ else }}{{ end }}\
-        {{ if .Result._historyUploader }}uploaded{{ else }}{{ end }}\
-        {{ if .Result._historyLeechTime }}downloaded{{ else }}{{ end }}\
-        "
+      # The filters for a user's torrent history that have valuable use cases can
+      # overlap, but Cardigann, unfortunately supports only one category per row. Try to
+      # use a sensible ordering so that the category that is most likely to be useful is
+      # the single category for the row:
+      case:
+        .top-nav__username: "9100"
+        .user-torrents__seedtime .text-red: "unsatisfied"
+        .user-torrents__warned :not([title^="Not "]): "hitrun"
+        .user-torrents__prewarned-at:not(:contains("N/A")): "prewarn"
+        .user-torrents__uploader :not([title^="Not "]): "uploaded"
+        ? .user-torrents__leeching :not([title^="Not "]),
+          .user-torrents__seeding :not([title^="Not "])
+        : "active"
+        .user-torrents__completed-at:not(:contains("N/A")): "completed"
+        .user-torrents__immune :not([title^="Not "]): "immune"
+        .user-torrents__leechtime: "downloaded"
     title:
       # 1. site-wide user data: the authenticated username
       # 2. user torrent history: the torrent name
@@ -342,7 +342,7 @@ search:
       # Serialize remaining fields not mapped to Cardigann fields into arbitrary JSON.
       # Use quotes instead of block scalars to control whitespace across lines:
       text: "\
-        {{ if .Result._siteUsername }}\
+        {{ if eq .Result.category \"9100\" }}\
         {\"uploaded\": \"{{ .Result._siteUserUploaded }}\",
          \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",
          \"messages\": {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},
