@@ -117,13 +117,10 @@ search:
       inputs:
         showMorePrecision: "true"
   inputs:
-    # Use quotes instead of block scalars to control whitespace across lines:
-    $raw: "\
-      {{ range .Categories }}\
-      {{ if and (ne . \"9000\") (ne . \"9100\") (ne . \"9400\") }}\
-      &{{.}}=include\
-      {{ end }}\
-      {{end}}"
+    # TODO: How to filter out the categories like "9100", "User/Site", that shouldn't be
+    # mapped to `fooCategory=include` query parameters:
+    $raw: >-
+      {{ range .Categories }}&{{.}}=include{{end}}
     search: >-
       {{ .Keywords }}
     sortField: >-
@@ -135,24 +132,169 @@ search:
     # 1. the site-wide user data summary in the header, 1 row
     # 2. the user torrent history rows
     selector: >-
-      nav.top-nav div.top-nav__right,
+      .top-nav .top-nav__right,
       tr[x-data="userHistory"]
 
   fields:
-    category:
-      text: >-
-        {{ if .Categories }}
-          {{ .Categories.0 }}
-        {{ end }}"
-    title:
+    # TODO: Collate all the fields that are mapped to Cardigann row fields and document
+    # the mappings.
+
+    # User site data fields that are not mapped to Cardigann row fields:
+    _siteUsername:
       selector: >-
+        .top-nav__username
+      optional: true
+    _siteUserUploaded:
+      selector: >-
+        .top-nav__right .ratio-bar__uploaded
+      optional: true
+    _siteUserDownloaded:
+      selector: >-
+        .top-nav__right .ratio-bar__downloaded
+      optional: true
+    _siteUserMessagesNew:
+      selector: >-
+        .top-nav__right a[href*="/conversations"]:has(svg)
+      attribute: "href"
+      optional: true
+    _siteUserNotificationsNew:
+      selector: >-
+        .top-nav__right a[href*="/notifications"]:has(svg)
+      attribute: "href"
+      optional: true
+    # _siteSystemMessages:
+    #   # Not available in UNIT3d top navigation:
+    #   selector: >-
+    #     TODO
+    #   optional: true
+
+    # User torrent history fields that are not mapped to Cardigann row fields:
+    _historyAgent:
+      selector: >-
+        .user-torrents__agent
+      optional: true
+    _historyUploadActual:
+      selector: >-
+        .user-torrents__upload span:nth-child(1)
+      optional: true
+    _historyUploadCredited:
+      selector: >-
+        .user-torrents__upload span:nth-child(3)
+      optional: true
+    _historyDownloadActual:
+      selector: >-
+        .user-torrents__download span:nth-child(1)
+      optional: true
+    _historyDownloadCredited:
+      selector: >-
+        .user-torrents__download span:nth-child(3)
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: ["Â", ""]
+      optional: true
+    _historyRatioActual:
+      selector: >-
+        .user-torrents__ratio span:nth-child(1)
+      optional: true
+    _historyLeechTime:
+      selector: >-
+        .user-torrents__leechtime
+      optional: true
+    _historySeedTimeUnsatisfied:
+      selector: >-
+        .user-torrents__seedtime .text-red
+      optional: true
+    _historyUpdatedAt:
+      selector: >-
+        .user-torrents__updated-at:not(:contains("N/A"))
+      filters:
+        # TODO: Time zone?
+        - name: "dateparse"
+          args: "yyyy-MM-dd HH:mm:ss"
+      optional: true
+    _historyCompletedAt:
+      selector: >-
+        .user-torrents__completed-at:not(:contains("N/A"))
+      filters:
+        # TODO: Time zone?
+        - name: "dateparse"
+          args: "yyyy-MM-dd HH:mm:ss"
+      optional: true
+    _historyPrewarnedAt:
+      selector: >-
+        .user-torrents__prewarned-at:not(:contains("N/A"))
+      filters:
+        # TODO: Time zone?
+        - name: "dateparse"
+          args: "yyyy-MM-dd HH:mm:ss"
+      optional: true
+    _historySeeding:
+      selector: >-
+        .user-torrents__seeding :not([title^="Not "])
+      attribute: "title"
+      optional: true
+    _historyLeeching:
+      selector: >-
+        .user-torrents__leeching :not([title^="Not "])
+      attribute: "title"
+      optional: true
+    _historyWarned:
+      selector: >-
+        .user-torrents__warned :not([title^="Not "])
+      attribute: "title"
+      optional: true
+    _historyImmune:
+      selector: >-
+        .user-torrents__immune :not([title^="Not "])
+      attribute: "title"
+      optional: true
+    _historyUploader:
+      selector: >-
+        .user-torrents__uploader :not([title^="Not "])
+      attribute: "title"
+      optional: true
+    _historyStatus:
+      selector: >-
+        .user-torrents__status :not([title^="Not "])
+      attribute: "title"
+      optional: true
+
+    # Fields that are mapped to Cardigann row fields:
+    category:
+      text: "\
+        {{ if .Result._siteUsername }}9100{{ else }}{{ end }}\
+        {{ if .Result._historySeedTimeUnsatisfied }}unsatisfied{{ else }}{{ end }}\
+        {{ if or .Result._historyLeeching .Result._historySeeding }}active{{ else }}\
+        {{ end }}\
+        {{ if .Result._historyCompletedAt }}completed{{ else }}{{ end }}\
+        {{ if .Result._historyPrewarnedAt }}prewarn{{ else }}{{ end }}\
+        {{ if .Result._historyWarned }}hitrun{{ else }}{{ end }}\
+        {{ if .Result._historyImmune }}immune{{ else }}{{ end }}\
+        {{ if .Result._historyUploader }}uploaded{{ else }}{{ end }}\
+        {{ if .Result._historyLeechTime }}downloaded{{ else }}{{ end }}\
+        "
+    title:
+      # 1. site-wide user data: the authenticated username
+      # 2. user torrent history: the torrent name
+      selector: >-
+        .top-nav__username,
         .user-torrents__name
     details:
+      # 1. site-wide user data: the authenticated username profile
+      # 2. user torrent history: the torrent page
       selector: >-
-        a.user-torrents__name
+        .top-nav__username,
+        .user-torrents__name
       attribute: "href"
     download:
-      text: >-
+      # 1. site-wide user data: the authenticated user's torrent history,
+      #    not a valid download URL but the field is required
+      # 2. user torrent history: download the `*.torrent` file
+      selector: >-
+        .top-nav__right a[href$="/torrents"]
+      optional: true
+      default: >-
         {{
           re_replace
           .Result.details
@@ -160,132 +302,80 @@ search:
           "https://seedpool.org/torrents/download/"
         }}
     seeders:
+      # 1. site-wide user data: the number currently seeding torrents
+      # 2. user torrent history: the number of seeders for the torrent
       selector: >-
+        .ratio-bar__seeding a[href$="/active"],
         .user-torrents__seeders
     leechers:
+      # 1. site-wide user data: the number currently downloading torrents,
+      #    not available in UNIT3d top navigation
+      # 2. user torrent history: the number of seeders for the torrent
       selector: >-
         .user-torrents__leechers
+      optional: true
     grabs:
+      # 1. site-wide user data: the current number of bonus points
+      # 2. user torrent history: the number of times the torrent has been grabbed
       selector: >-
+        .ratio-bar__seeding a[href$="/earnings"],
         .user-torrents__times
-    _agent:
-      selector: >-
-        .user-torrents__agent
     size:
+      # 1. site-wide user data: the download buffer available for their current ratio
+      # 2. user torrent history: the total size of the torrent's files
       selector: >-
+        .ratio-bar__ratio a[title*="Buffer"],
         .user-torrents__size
-    _uploadActual:
+    date:
+      # 1. site-wide user data: the user's registration date,
+      #    not available in UNIT3d top navigation
+      # 2. user torrent history: the date the user first downloaded the torrent
       selector: >-
-        .user-torrents__upload span:nth-child(1)
-    _uploadCredited:
+        .user-torrents__created-at:not(:contains("N/A"))
+      filters:
+        # TODO: Time zone?
+        - name: "dateparse"
+          args: "yyyy-MM-dd HH:mm:ss"
+      optional: true
+      default: "now"
+    description:
+      # Serialize remaining fields not mapped to Cardigann fields into arbitrary JSON.
+      # Use quotes instead of block scalars to control whitespace across lines:
+      text: "\
+        {{ if .Result._siteUsername }}\
+        {\"uploaded\": \"{{ .Result._siteUserUploaded }}\",
+         \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",
+         \"messages\": {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},
+         \"notifications\": {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }}}\
+        {{ else }}\
+        {\"agent\": \"{{ .Result._historyAgent }}\",
+         \"uploadActual\": \"{{ .Result._historyUploadActual }}\",
+         \"uploadCredited\": \"{{ .Result._historyUploadCredited }}\",
+         \"downloadActual\": \"{{ .Result._historyDownloadActual }}\",
+         \"downloadCredited\": \"{{ .Result._historyDownloadCredited }}\",
+         \"ratioActual\": {{ .Result._historyRatioActual }},
+         \"leechTime\": \"{{ .Result._historyLeechTime }}\",
+         \"updatedAt\": \"{{ .Result._historyUpdatedAt }}\",
+         \"completedAt\": \"{{ .Result._historyCompletedAt }}\",
+         \"prewarnedAt\": \"{{ .Result._historyPrewarnedAt }}\",
+         \"seeding\": {{ if .Result._historySeeding }}true{{ else }}false{{ end }},
+         \"leeching\": {{ if .Result._historyLeeching }}true{{ else }}false{{ end }},
+         \"warned\": {{ if .Result._historyWarned }}true{{ else }}false{{ end }},
+         \"immune\": {{ if .Result._historyImmune }}true{{ else }}false{{ end }},
+         \"uploader\": {{ if .Result._historyUploader }}true{{ else }}false{{ end }},
+         \"status\": {{ if .Result._historyStatus }}true{{ else }}false{{ end }}}\
+        {{ end }}"
+    minimumratio:
+      # 1. site-wide user data: the user's current site-wide ratio
+      # 2. user torrent history: the user's ratio for this torrent including credits
       selector: >-
-        .user-torrents__upload span:nth-child(2)
-    _downloadActual:
-      selector: >-
-        .user-torrents__download span:nth-child(1)
-    _downloadCredited:
-      selector: >-
-        .user-torrents__download span:nth-child(2)
-    _ratioActual:
-      selector: >-
-        .user-torrents__ratio span:nth-child(1)
-    _ratioCredited:
-      selector: >-
-        .user-torrents__ratio span:nth-child(2)
-    _leechTime:
-      selector: >-
-        .user-torrents__leechtime
-    _seedTime:
+        .ratio-bar__ratio a:not([title*="Buffer"]),
+        .user-torrents__ratio span:nth-child(3)
+    minimumseedtime:
+      # 1. site-wide user data: the user's total site-wide seeding time,
+      #    not available in UNIT3d top navigation
+      # 2. user torrent history: the user's ratio for this torrent including credits
       selector: >-
         .user-torrents__seedtime
-    _createdAt:
-      selector: >-
-        .user-torrents__created-at
-    date:
-      text: >-
-        {{ .Result._createdAt }}
-    _updatedAt:
-      selector: >-
-        .user-torrents__updated-at
-    _completedAt:
-      selector: >-
-        .user-torrents__completed-at
-    _prewarnedAt:
-      selector: >-
-        .user-torrents__prewarned-at
-    _seeding:
-      selector: >-
-        .user-torrents__seeding [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    _leeching:
-      selector: >-
-        .user-torrents__leeching [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    _warned:
-      selector: >-
-        .user-torrents__warned [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    _immune:
-      selector: >-
-        .user-torrents__immune [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    _uploader:
-      selector: >-
-        .user-torrents__uploader [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    _status:
-      selector: >-
-        .user-torrents__status [title]
-      attribute: "title"
-      case:
-        "Not *": "false"
-        "*": "true"
-    description:
-      text: |
-        {
-          "agent": "{{ .Result._agent }}",
-          "uploadActual": "{{ .Result._uploadActual }}",
-          "uploadCredited": "{{ .Result._uploadCredited }}",
-          "downloadActual": "{{ .Result._downloadActual }}",
-          "downloadCredited": "{{ .Result._downloadCredited }}",
-          "ratioActual": "{{ .Result._ratioActual }}",
-          "ratioCredited": "{{ .Result._ratioCredited }}",
-          "leechTime": "{{ .Result._leechTime }}",
-          "seedTime": "{{ .Result._seedTime }}",
-          "createdAt": "{{ .Result._createdAt }}",
-          "updatedAt": "{{ .Result._updatedAt }}",
-          "completedAt": "{{ .Result._completedAt }}",
-          "prewarnedAt": "{{ .Result._prewarnedAt }}",
-          "seeding": "{{ .Result._seeding }}",
-          "leeching": "{{ .Result._leeching }}",
-          "warned": "{{ .Result._warned }}",
-          "immune": "{{ .Result._immune }}",
-          "uploader": "{{ .Result._uploader }}",
-          "status": "{{ .Result._status }}"
-        }
-    downloadvolumefactor:
-      text: "1"
-    uploadvolumefactor:
-      text: "1"
-# global MR is 1.0 but torrents must be seeded for 10 days regardless of ratio
-#    minimumratio:
-#      text: 1.0
-    minimumseedtime:
-      # 10 days (as seconds = 10 x 24 x 60 x 60)
-      text: 864000
+      optional: true
 # json UNIT3D 8.3.6 (custom)
