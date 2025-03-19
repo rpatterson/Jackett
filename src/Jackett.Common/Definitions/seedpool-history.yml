@@ -20,13 +20,15 @@ caps:
     - {id: 9000, cat: "Other/Misc", desc: "User"}
     - {id: 9100, cat: "Other/Misc", desc: "User/Site"}
     - {id: 9400, cat: "Other/Misc", desc: "User/History"}
+    # Order from most specific and most likely to be useful to least so that the
+    # category chosen for each row is most useful:
+    - {id: "uploaded", cat: "Other/Misc", desc: "User/History-Uploaded"}
+    - {id: "hitrun", cat: "Other/Misc", desc: "User/History-HnR"}
+    - {id: "prewarn", cat: "Other/Misc", desc: "User/History-Prewarned"}
     - {id: "unsatisfied", cat: "Other/Misc", desc: "User/History-Unsatisfieds"}
     - {id: "active", cat: "Other/Misc", desc: "User/History-Active"}
     - {id: "completed", cat: "Other/Misc", desc: "User/History-Completed"}
-    - {id: "prewarn", cat: "Other/Misc", desc: "User/History-Prewarned"}
-    - {id: "hitrun", cat: "Other/Misc", desc: "User/History-HnR"}
     - {id: "immune", cat: "Other/Misc", desc: "User/History-Immune"}
-    - {id: "uploaded", cat: "Other/Misc", desc: "User/History-Uploaded"}
     - {id: "downloaded", cat: "Other/Misc", desc: "User/History-Downloaded"}
 
   modes:
@@ -45,7 +47,6 @@ settings:
   - name: "sortField"
     type: "select"
     label: "Sort on the selected fields"
-    default: "seedtime"
     options:
       name: "Name"
       seeders: "Seeders"
@@ -68,13 +69,16 @@ settings:
       immune: "Immune?"
       uploaded: "Uploaded"
       status: "Approved"
+    # Default to the sort most likely to include potential H&Rs, most recently
+    # added/started in the client:
+    default: "created_at"
   - name: "sortDirection"
     type: "select"
     label: "Sort direction"
-    default: "asc"
     options:
       desc: "Descending"
       asc: "Ascending"
+    default: "desc"
 
 login:
   # note APIKEY is broken on this 5.3.0 site
@@ -118,7 +122,10 @@ search:
         showMorePrecision: "true"
   inputs:
     # TODO: How to filter out the categories like "9100", "User/Site", that shouldn't be
-    # mapped to `fooCategory=include` query parameters:
+    # mapped to `fooCategory=include` query parameters? This will almost certainly cause
+    # problems when some indexer treats an unknown query parameter as an error or
+    # returns no results. The only other option within Cardigann currently results in
+    # unnecessary additional requests using `search:/paths:/categories:`:
     $raw: >-
       {{ range .Categories }}&{{.}}=include{{end}}
     search: >-
@@ -201,6 +208,10 @@ search:
       selector: >-
         .user-torrents__leechtime
       optional: true
+    _historySeedTimeUnsatisfied:
+      selector: >-
+        .user-torrents__seedtime .text-red
+      optional: true
     _historyUpdatedAt:
       selector: >-
         .user-torrents__updated-at:not(:contains("N/A"))
@@ -255,25 +266,103 @@ search:
         .user-torrents__status :not([title^="Not "])
       attribute: "title"
       optional: true
-
-    # Fields that are mapped to Cardigann row fields:
-    category:
-      # The filters for a user's torrent history that have valuable use cases can
-      # overlap, but Cardigann, unfortunately supports only one category per row. Try to
-      # use a sensible ordering so that the category that is most likely to be useful is
-      # the single category for the row:
+    _historyCategory:
+      # The default category for the row if no categories are in the query. Match the
+      # ordering under `categorymappings:`:
       case:
         .top-nav__username: "9100"
-        .user-torrents__seedtime .text-red: "unsatisfied"
+        .user-torrents__uploader :not([title^="Not "]): "uploaded"
         .user-torrents__warned :not([title^="Not "]): "hitrun"
         .user-torrents__prewarned-at:not(:contains("N/A")): "prewarn"
-        .user-torrents__uploader :not([title^="Not "]): "uploaded"
+        .user-torrents__seedtime .text-red: "unsatisfied"
         ? .user-torrents__leeching :not([title^="Not "]),
           .user-torrents__seeding :not([title^="Not "])
         : "active"
         .user-torrents__completed-at:not(:contains("N/A")): "completed"
         .user-torrents__immune :not([title^="Not "]): "immune"
         .user-torrents__leechtime: "downloaded"
+
+    # The filters for a user's torrent history that have valuable use cases can overlap,
+    # but Cardigann, unfortunately supports only one category per row. Choose the first
+    # category from the query that matches the row. Given that Cardigann's filters
+    # aren't applied to `text:` values and that variable expressions can't be used in
+    # template statement arguments beyond the first, we have to use a series of working
+    # fields:
+    _queryCategories:
+      text: >-
+        {{ join .Categories "," }}
+    _queryCategoriesNotUploaded:
+      text: "\
+        {{ if .Result._historyUploader }}\
+          {{ .Result._queryCategories }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategories \",?uploaded,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesNotHitNRun:
+      text: "\
+        {{ if .Result._historyWarned }}\
+          {{ .Result._queryCategoriesNotUploaded }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesNotUploaded \",?hitrun,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesNotPreWarn:
+      text: "\
+        {{ if .Result._historyPrewarnedAt }}\
+          {{ .Result._queryCategoriesNotHitNRun }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesNotHitNRun \",?prewarn,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesSatisfied:
+      text: "\
+        {{ if .Result._historySeedTimeUnsatisfied }}\
+          {{ .Result._queryCategoriesNotPreWarn }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesNotPreWarn \",?unsatisfied,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesInactive:
+      text: "\
+        {{ if or .Result._historyLeeching .Result._historySeeding }}\
+          {{ .Result._queryCategoriesSatisfied }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesSatisfied \",?active,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesIncomplete:
+      text: "\
+        {{ if .Result._historyCompletedAt }}\
+          {{ .Result._queryCategoriesInactive }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesInactive \",?completed,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesNotImmune:
+      text: "\
+        {{ if .Result._historyImmune }}\
+          {{ .Result._queryCategoriesIncomplete }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesIncomplete \",?immune,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesNotDownloaded:
+      text: "\
+        {{ if .Result._historyLeechTime }}\
+          {{ .Result._queryCategoriesNotImmune }}\
+        {{ else }}\
+          {{ re_replace .Result._queryCategoriesNotImmune \",?downloaded,?\" \",\" }}\
+        {{ end }}"
+    _queryCategoriesHistory:
+      text: >-
+        {{ re_replace .Result._queryCategoriesNotDownloaded ",?9100,?" "" }}
+    category:
+      case:
+        .top-nav__username: "9100"
+      optional: true
+      default: "\
+        {{ if .Result._queryCategoriesHistory }}\
+          {{ re_replace .Result._queryCategoriesHistory \"([^,]+).*\" \"$1\" }}\
+        {{ else }}\
+          {{ .Result._historyCategory }}\
+        {{ end }}\
+        "
+
+    # Fields that are mapped to Cardigann row fields:
     title:
       # 1. site-wide user data: the authenticated username
       # 2. user torrent history: the torrent name
