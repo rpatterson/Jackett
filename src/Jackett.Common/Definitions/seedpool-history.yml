@@ -182,6 +182,15 @@ search:
     #   selector: >-
     #     TODO
     #   optional: true
+    _siteUserUnmapped:
+      text: "\
+        {\n
+          \"uploaded\": \"{{ .Result._siteUserUploaded }}\",\n
+          \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",\n
+          \"messages\": {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},\n
+          \"notifications\": \
+        {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }}\n
+        }"
 
     # User torrent history fields that are not mapped to Cardigann row fields:
     _historyAgent:
@@ -301,6 +310,26 @@ search:
         .user-torrents__completed-at:not(:contains("N/A")): "completed"
         .user-torrents__immune :not([title^="Not "]): "immune"
         .user-torrents__leechtime: "downloaded"
+    _historyUnmapped:
+      text: "\
+        {\n
+          \"agent\": \"{{ .Result._historyAgent }}\",\n
+          \"uploadActual\": \"{{ .Result._historyUploadActual }}\",\n
+          \"uploadCredited\": \"{{ .Result._historyUploadCredited }}\",\n
+          \"downloadActual\": \"{{ .Result._historyDownloadActual }}\",\n
+          \"downloadCredited\": \"{{ .Result._historyDownloadCredited }}\",\n
+          \"ratioActual\": {{ .Result._historyRatioActual }},\n
+          \"leechTime\": \"{{ .Result._historyLeechTime }}\",\n
+          \"updatedAt\": \"{{ .Result._historyUpdatedAt }}\",\n
+          \"completedAt\": \"{{ .Result._historyCompletedAt }}\",\n
+          \"prewarnedAt\": \"{{ .Result._historyPrewarnedAt }}\",\n
+          \"seeding\": {{ if .Result._historySeeding }}true{{ else }}false{{ end }},\n
+          \"leeching\": {{ if .Result._historyLeeching }}true{{ else }}false{{ end }},\n
+          \"warned\": {{ if .Result._historyWarned }}true{{ else }}false{{ end }},\n
+          \"immune\": {{ if .Result._historyImmune }}true{{ else }}false{{ end }},\n
+          \"uploader\": {{ if .Result._historyUploader }}true{{ else }}false{{ end }},\n
+          \"status\": {{ if .Result._historyStatus }}true{{ else }}false{{ end }}\n
+        }"
 
     # The filters for a user's torrent history that have valuable use cases can overlap,
     # but Cardigann, unfortunately supports only one category per row. Choose the first
@@ -451,29 +480,8 @@ search:
       # Serialize remaining fields not mapped to Cardigann fields into arbitrary JSON.
       # Use quotes instead of block scalars to control whitespace across lines:
       text: "\
-        {{ if eq .Result.category \"9100\" }}\
-        {\"uploaded\": \"{{ .Result._siteUserUploaded }}\",
-         \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",
-         \"messages\": {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},
-         \"notifications\": {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }}}\
-        {{ else }}\
-        {\"agent\": \"{{ .Result._historyAgent }}\",
-         \"uploadActual\": \"{{ .Result._historyUploadActual }}\",
-         \"uploadCredited\": \"{{ .Result._historyUploadCredited }}\",
-         \"downloadActual\": \"{{ .Result._historyDownloadActual }}\",
-         \"downloadCredited\": \"{{ .Result._historyDownloadCredited }}\",
-         \"ratioActual\": {{ .Result._historyRatioActual }},
-         \"leechTime\": \"{{ .Result._historyLeechTime }}\",
-         \"updatedAt\": \"{{ .Result._historyUpdatedAt }}\",
-         \"completedAt\": \"{{ .Result._historyCompletedAt }}\",
-         \"prewarnedAt\": \"{{ .Result._historyPrewarnedAt }}\",
-         \"seeding\": {{ if .Result._historySeeding }}true{{ else }}false{{ end }},
-         \"leeching\": {{ if .Result._historyLeeching }}true{{ else }}false{{ end }},
-         \"warned\": {{ if .Result._historyWarned }}true{{ else }}false{{ end }},
-         \"immune\": {{ if .Result._historyImmune }}true{{ else }}false{{ end }},
-         \"uploader\": {{ if .Result._historyUploader }}true{{ else }}false{{ end }},
-         \"status\": {{ if .Result._historyStatus }}true{{ else }}false{{ end }}}\
-        {{ end }}"
+        {{ if .Result._siteUsername }}{{ .Result._siteUserUnmapped }}\
+        {{ else }}{{ .Result._historyUnmapped }}{{ end }}"
     minimumratio:
       # 1. site-wide user data: the user's current site-wide ratio
       # 2. user torrent history: the user's ratio for this torrent including credits
