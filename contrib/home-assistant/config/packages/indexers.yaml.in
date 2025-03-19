@@ -1,0 +1,89 @@
+# The command_line sensors for monitoring an Jackett/Prowlarr indexer user accounts.
+
+{% for indexer in indexers -%}
+indexers_{{ indexer['slug'] }}:
+  alert:
+    &ID-{{ indexer['slug']|upper }} {{ indexer['slug'] }}_alert:
+      <<: &ALERT
+        <<: &ALERT-WO-REPEAT
+          state: "on"
+          notifiers:
+            - "all"
+        repeat:
+          - 10
+          - 15
+          - 30
+          - 60
+      name: &NAME-{{ indexer['slug']|upper }} "{{ indexer['name'] }} Alert"
+      entity_id: "binary_sensor.{{ indexer['slug'] }}_alert"
+      title: *NAME-{{ indexer['slug']|upper }}
+      message: >-
+        {{ '{%-' }}
+          state_attr('sensor.{{ indexer['slug'] }}_user_ratio', 'alerts')
+        {{'-%}' }}
+      data:
+        <<: &ALERT-DATA
+          renotify: true
+        tag: "{{ indexer['slug'] }}-alert"
+        url:
+          &ALERT-DATA-URL-{{ indexer['slug']|upper }} "{{ indexer['site_user']['hnrsURL'] }}"
+        clickAction: *ALERT-DATA-URL-{{ indexer['slug']|upper }}
+  template:
+    - binary_sensor:
+        - <<: &BINARY_SENSOR
+            device_class: "problem"
+          unique_id: *ID-{{ indexer['slug']|upper }}
+          name: *NAME-{{ indexer['slug']|upper }}
+          availability: >-
+            {{ '{{' }}
+              has_value('sensor.{{ indexer['slug'] }}_user_ratio')
+            {{ '}}' }}
+          state: >-
+            {{ '{{' }}
+              state_attr('sensor.{{ indexer['slug'] }}_user_ratio', 'alerts')|bool
+            {{'}}' }}
+  command_line:
+    - sensor:
+        <<: &COMMAND_LINE
+          state_class: "measurement"
+          # Match Jackett's default cache TTL, 35 minutes * 60 seconds.
+          # Beware of the indexer's request rate limits if changed:
+          scan_interval: 2100
+          value_template: &VALUE_TEMPLATE-FLOAT-RATIO >-
+            {{ '{{' }} value_json["ratio"]|float {{ '}}' }}
+          json_attributes:
+            - "jackettindexer"
+            - "type"
+            - "pubDate"
+            - "link"
+            - "category"
+            - "enclosure"
+            - "peers"
+            - "username"
+            - "profileURL"
+            - "historyURL"
+            - "seeding"
+            - "buffer"
+            - "minimumRatio"
+            - "uploaded"
+            - "downloaded"
+            - "bonusPoints"
+            - "notificationsNew"
+            - "messagesNew"
+            - "hnrsURL"
+            - "alerts"
+            - "uploaded"
+            - "downloaded"
+            - "bonusPoints"
+            - "notificationsNew"
+            - "messagesNew"
+            - "hnrsURL"
+            - "alerts"
+        unique_id: "{{ indexer['slug'] }}_user_ratio"
+        name: "{{ indexer['name'] }} User Ratio"
+        command: >-
+          python "./indexers.py" query "{{ indexer['id'] }}"
+{%- endfor %}
+
+# TODO: Adapt for re-using YAML anchors from above? Or maybe not given we're generating
+# entity configurations from templates:
