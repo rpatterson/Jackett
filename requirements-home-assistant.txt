@@ -1,0 +1,4 @@
+requests
+xmltodict
+jinja2
+PyYAML
