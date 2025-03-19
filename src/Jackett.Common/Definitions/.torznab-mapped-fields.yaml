@@ -1,0 +1,22 @@
+---
+# The Torznab fields that are mapped to a different meaning for the site-wide user data
+# and user torrent history special categories:
+siteUser:
+  title: "username"
+  comments: "profileURL"
+  guid: "historyURL"
+  seeders: "seeding"
+  leechers: "leeching"
+  # Debatable if it needs mapping, but how many torrents a user has ever grabbed is
+  # different from how many times all users have grabbed a torrent:
+  grabs: "grabs"
+  size: "buffer"
+  date: "registration"
+  # Debatable if it needs mapping, but the user's site wide minimum ratio is different
+  # from the minimum ratio for a specific torrent:
+  minimumratio: "minimumRatio"
+  minimumseedtime: "averageSeedTime"
+history:
+  date: "added"
+  minimumratio: "ratio"
+  minimumseedtime: "seedTime"
