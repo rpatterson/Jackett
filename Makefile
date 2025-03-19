@@ -54,6 +54,11 @@ lint-yaml: ./build/log/tox-py38-update.log
 validate-definitons: ./build/log/npm-install.log
 	~/.nvm/nvm-exec npm run "validate:definitons"
 
+.PHONY: test-home-assistant
+## Test the rendering of Home Assistant sensors and the Torznab queries they make.
+test-home-assistant: ./build/log/tox-home-assistant-update.log
+	tox run -e "$(<:build/log/tox-%-update.log=%)"
+
 ### Real Targets:
 
 # Manage Python tools:
@@ -61,7 +66,9 @@ validate-definitons: ./build/log/npm-install.log
 	tox exec -e "$(<:build/log/tox-%-update.log=%)" -- \
 	    pre-commit install --hook-type "pre-commit" --hook-type "commit-msg" \
 	    --hook-type "pre-push"
-./build/log/tox-py38-update.log: ./requirements.txt ./tox.ini
+./build/log/tox-py38-update.log ./build/log/tox-home-assistant-update.log: \
+		./requirements.txt \
+		./tox.ini
 	$(MAKE) "./build/log/tox-install.log"
 	mkdir -pv "$(dir $(@))"
 	tox run -e "$(@:build/log/tox-%-update.log=%)" --notest | tee -a "$(@)"
