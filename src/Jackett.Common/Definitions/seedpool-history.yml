@@ -1,3 +1,4 @@
+# TODO: Generalize to `./unit3d-history.yml`?
 ---
 id: "seedpool-history"
 name: "seedpool (history)"
@@ -109,8 +110,7 @@ login:
     - selector: >-
         .auth-form__errors
   test:
-    path: >-
-      /users/{{ .Config.username }}/torrents?showMorePrecision=true
+    path: "/torrents"
     selector: >-
       form[action*="/logout"]
 
@@ -143,14 +143,25 @@ search:
       tr[x-data="userHistory"]
 
   fields:
-    # TODO: Collate all the fields that are mapped to Cardigann row fields and document
-    # the mappings.
 
     # User site data fields that are not mapped to Cardigann row fields:
     _siteUsername:
       selector: >-
         .top-nav__username
       optional: true
+    _siteUserRatio:
+      selector: >-
+        .ratio-bar__ratio a:not([title*="Buffer"])
+      filters:
+        - name: "regexp"
+          args: >-
+            ([0-9.]+) +[0-9]+
+      optional: true
+    _siteUserRatioSufficient:
+      # Minimum site-wide user ratio is 1:1 for this indexer:
+      # Yields the ratio if it does *not* match indicating the ratio is too low.
+      text: >-
+        {{ re_replace .Result._siteUserRatio "^0(\.[0-9]+|)" "" }}
     _siteUserUploaded:
       selector: >-
         .top-nav__right .ratio-bar__uploaded
@@ -167,30 +178,30 @@ search:
         - name: "replace"
           args: [" ", " "]
       optional: true
+    _siteUserBonusPoints:
+      selector: >-
+        .ratio-bar__seeding a[href*="/users/"][href$="/earnings"]
+      filters:
+        # Strip out `&nbsp;` and other unusual white-space characters:
+        - name: "re_replace"
+          args: ["[  ]", ""]
+      optional: true
     _siteUserMessagesNew:
       selector: >-
-        .top-nav__right a[href*="/conversations"]:has(svg)
+        .top-nav__right a[href*="/users/"][href*="/conversations"]:has(svg)
       attribute: "href"
       optional: true
     _siteUserNotificationsNew:
       selector: >-
-        .top-nav__right a[href*="/notifications"]:has(svg)
+        .top-nav__right a[href*="/users/"][href*="/notifications"]:has(svg)
       attribute: "href"
       optional: true
-    # _siteSystemMessages:
-    #   # Not available in UNIT3d top navigation:
-    #   selector: >-
-    #     TODO
-    #   optional: true
-    _siteUserUnmapped:
-      text: "\
-        {\n
-          \"uploaded\": \"{{ .Result._siteUserUploaded }}\",\n
-          \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",\n
-          \"messages\": {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},\n
-          \"notifications\": \
-        {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }}\n
-        }"
+    _siteSystemNotifications:
+      # Not available in UNIT3d top navigation:
+      selector: >-
+        .top-nav__right a[href*="/system/notifications"]:has(svg)
+      attribute: "href"
+      optional: true
 
     # User torrent history fields that are not mapped to Cardigann row fields:
     _historyAgent:
@@ -310,26 +321,6 @@ search:
         .user-torrents__completed-at:not(:contains("N/A")): "completed"
         .user-torrents__immune :not([title^="Not "]): "immune"
         .user-torrents__leechtime: "downloaded"
-    _historyUnmapped:
-      text: "\
-        {\n
-          \"agent\": \"{{ .Result._historyAgent }}\",\n
-          \"uploadActual\": \"{{ .Result._historyUploadActual }}\",\n
-          \"uploadCredited\": \"{{ .Result._historyUploadCredited }}\",\n
-          \"downloadActual\": \"{{ .Result._historyDownloadActual }}\",\n
-          \"downloadCredited\": \"{{ .Result._historyDownloadCredited }}\",\n
-          \"ratioActual\": {{ .Result._historyRatioActual }},\n
-          \"leechTime\": \"{{ .Result._historyLeechTime }}\",\n
-          \"updatedAt\": \"{{ .Result._historyUpdatedAt }}\",\n
-          \"completedAt\": \"{{ .Result._historyCompletedAt }}\",\n
-          \"prewarnedAt\": \"{{ .Result._historyPrewarnedAt }}\",\n
-          \"seeding\": {{ if .Result._historySeeding }}true{{ else }}false{{ end }},\n
-          \"leeching\": {{ if .Result._historyLeeching }}true{{ else }}false{{ end }},\n
-          \"warned\": {{ if .Result._historyWarned }}true{{ else }}false{{ end }},\n
-          \"immune\": {{ if .Result._historyImmune }}true{{ else }}false{{ end }},\n
-          \"uploader\": {{ if .Result._historyUploader }}true{{ else }}false{{ end }},\n
-          \"status\": {{ if .Result._historyStatus }}true{{ else }}false{{ end }}\n
-        }"
 
     # The filters for a user's torrent history that have valuable use cases can overlap,
     # but Cardigann, unfortunately supports only one category per row. Choose the first
@@ -411,7 +402,10 @@ search:
         {{ end }}\
         "
 
-    # Fields that are mapped to Cardigann row fields:
+    # Fields that are mapped to Cardigann row fields.
+
+    # See `./.torznab-mapped-fields.yaml` for how to translate mapped Torznab fields
+    # back to the fields specific to the row's category:
     title:
       # 1. site-wide user data: the authenticated username
       # 2. user torrent history: the torrent name
@@ -430,7 +424,8 @@ search:
       #    not a valid download URL but the field is required
       # 2. user torrent history: download the `*.torrent` file
       selector: >-
-        .top-nav__right a[href$="/torrents"]
+        .top-nav__right a[href*="/users/"][href$="/torrents"]
+      attribute: "href"
       optional: true
       default: >-
         {{
@@ -453,11 +448,12 @@ search:
         .user-torrents__leechers
       optional: true
     grabs:
-      # 1. site-wide user data: the current number of bonus points
+      # 1. site-wide user data: the total number of torrents grabbed by the user,
+      #    not available in UNIT3d top navigation
       # 2. user torrent history: the number of times the torrent has been grabbed
       selector: >-
-        .ratio-bar__seeding a[href$="/earnings"],
         .user-torrents__times
+      optional: true
     size:
       # 1. site-wide user data: the download buffer available for their current ratio
       # 2. user torrent history: the total size of the torrent's files
@@ -476,23 +472,74 @@ search:
           args: "yyyy-MM-dd HH:mm:ss"
       optional: true
       default: "now"
+    minimumratio:
+      # 2. user torrent history: the user's ratio for this torrent including credits
+      selector: >-
+        .user-torrents__ratio span:nth-child(3)
+      optional: true
+      # 1. site-wide user data: the minimum required site-wide ratio for the user
+      default: 1.0
+    minimumseedtime:
+      # 1. site-wide user data: the user's average site-wide seeding time,
+      #    not available in UNIT3d top navigation
+      # 2. user torrent history: the user's ratio for this torrent including credits
+      selector: >-
+        .user-torrents__seedtime
+      optional: true
+
+    _siteUserUnmapped:
+      # TODO: Regarding extensions to Cardigann, this approach is a kludge while we work
+      # out use cases and the right data models to support those use cases. Serializing
+      # JSON using Cardigann templates is obviously an anti-pattern. For now anything
+      # beyond one level deep is even more of a nightmare, so keep it flat and note when
+      # there's temptation to add depth for future design decisions:
+      #
+      # TODO: Add alerts for when there are enough bonus points to buy the most optimal
+      # reward.
+      text: "\
+        {\n
+          \"ratio\": {{ .Result._siteUserRatio }},\n
+          \"uploaded\": \"{{ .Result._siteUserUploaded }}\",\n
+          \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",\n
+          \"bonusPoints\": {{ .Result._siteUserBonusPoints }},\n
+          \"notificationsNew\": \
+        {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }},\n
+          \"messagesNew\": \
+        {{ if .Result._siteUserMessagesNew }}true{{ else }}false{{ end }},\n
+          \"hnrsURL\": \"{{ .Result.download }}?unsatisfied=include\
+        &active=exclude&sortField=created_at&sortDirection=desc\",\n
+          \"alerts\": \"\
+        {{ if .Result._siteUserRatioSufficient }}{{ else }}\
+        ratio < {{ .Result.minimumratio }}, {{ end }}\
+        {{ if .Result._siteUserNotificationsNew }}new notification, {{ else }}{{ end }}\
+        {{ if .Result._siteUserMessagesNew }}new message{{ else }}{{ end }}\
+        \"
+        }"
+    _historyUnmapped:
+      text: "\
+        {\n
+          \"agent\": \"{{ .Result._historyAgent }}\",\n
+          \"uploadActual\": \"{{ .Result._historyUploadActual }}\",\n
+          \"uploadCredited\": \"{{ .Result._historyUploadCredited }}\",\n
+          \"downloadActual\": \"{{ .Result._historyDownloadActual }}\",\n
+          \"downloadCredited\": \"{{ .Result._historyDownloadCredited }}\",\n
+          \"ratioActual\": {{ .Result._historyRatioActual }},\n
+          \"leechTime\": \"{{ .Result._historyLeechTime }}\",\n
+          \"updatedAt\": \"{{ .Result._historyUpdatedAt }}\",\n
+          \"completedAt\": \"{{ .Result._historyCompletedAt }}\",\n
+          \"prewarnedAt\": \"{{ .Result._historyPrewarnedAt }}\",\n
+          \"seeding\": {{ if .Result._historySeeding }}true{{ else }}false{{ end }},\n
+          \"leeching\": {{ if .Result._historyLeeching }}true{{ else }}false{{ end }},\n
+          \"warned\": {{ if .Result._historyWarned }}true{{ else }}false{{ end }},\n
+          \"immune\": {{ if .Result._historyImmune }}true{{ else }}false{{ end }},\n
+          \"uploader\": {{ if .Result._historyUploader }}true{{ else }}false{{ end }},\n
+          \"status\": {{ if .Result._historyStatus }}true{{ else }}false{{ end }}\n
+        }"
     description:
       # Serialize remaining fields not mapped to Cardigann fields into arbitrary JSON.
       # Use quotes instead of block scalars to control whitespace across lines:
       text: "\
         {{ if .Result._siteUsername }}{{ .Result._siteUserUnmapped }}\
         {{ else }}{{ .Result._historyUnmapped }}{{ end }}"
-    minimumratio:
-      # 1. site-wide user data: the user's current site-wide ratio
-      # 2. user torrent history: the user's ratio for this torrent including credits
-      selector: >-
-        .ratio-bar__ratio a:not([title*="Buffer"]),
-        .user-torrents__ratio span:nth-child(3)
-    minimumseedtime:
-      # 1. site-wide user data: the user's total site-wide seeding time,
-      #    not available in UNIT3d top navigation
-      # 2. user torrent history: the user's ratio for this torrent including credits
-      selector: >-
-        .user-torrents__seedtime
-      optional: true
+
 # json UNIT3D 8.3.6 (custom)
