@@ -154,10 +154,18 @@ search:
     _siteUserUploaded:
       selector: >-
         .top-nav__right .ratio-bar__uploaded
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: [" ", " "]
       optional: true
     _siteUserDownloaded:
       selector: >-
         .top-nav__right .ratio-bar__downloaded
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: [" ", " "]
       optional: true
     _siteUserMessagesNew:
       selector: >-
@@ -183,14 +191,26 @@ search:
     _historyUploadActual:
       selector: >-
         .user-torrents__upload span:nth-child(1)
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: [" ", " "]
       optional: true
     _historyUploadCredited:
       selector: >-
         .user-torrents__upload span:nth-child(3)
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: [" ", " "]
       optional: true
     _historyDownloadActual:
       selector: >-
         .user-torrents__download span:nth-child(1)
+      filters:
+        # Strip out `&nbsp;` characters:
+        - name: "replace"
+          args: [" ", " "]
       optional: true
     _historyDownloadCredited:
       selector: >-
@@ -198,7 +218,7 @@ search:
       filters:
         # Strip out `&nbsp;` characters:
         - name: "replace"
-          args: ["Â", ""]
+          args: [" ", " "]
       optional: true
     _historyRatioActual:
       selector: >-
