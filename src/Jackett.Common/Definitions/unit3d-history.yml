@@ -1,13 +1,14 @@
 # TODO: Generalize to `./unit3d-history.yml`?
 ---
-id: "seedpool-history"
-name: "seedpool (history)"
-description: "seedpool user's torrent history plus site-wide user data"
+id: "unit3d-history"
+name: "UNIT3D (history)"
+description: "UNIT3D user's torrent history plus site-wide user data"
 language: "en-US"
 type: "private"
 encoding: "UTF-8"
 links:
   - "https://seedpool.org/"
+  - "https://upscalevault.com/"
 
 caps:
 
@@ -140,7 +141,7 @@ search:
     # 2. the user torrent history rows
     selector: >-
       .top-nav .top-nav__right,
-      tr[x-data="userHistory"]
+      .user-torrents tr:has(td)
 
   fields:
 
@@ -150,6 +151,8 @@ search:
         .top-nav__username
       optional: true
     _siteUserRatio:
+      # An empty string, such as when the only contents is an infinity character,
+      # becomes `null` in the `description:`:
       selector: >-
         .ratio-bar__ratio a:not([title*="Buffer"])
       filters:
@@ -180,14 +183,21 @@ search:
       optional: true
     _siteUserBonusPoints:
       selector: >-
+        .ratio-bar__points a[href*="/users/"][href$="/earnings"],
         .ratio-bar__seeding a[href*="/users/"][href$="/earnings"]
       filters:
         # Strip out `&nbsp;` and other unusual white-space characters:
         - name: "re_replace"
           args: ["[  ]", ""]
       optional: true
+    _siteUserTokens:
+      selector: >-
+        .ratio-bar__tokens
+      # Seedpool omits this from top navigation:
+      optional: true
     _siteUserMessagesNew:
       selector: >-
+        .top-nav__right a[href*="/users/"][href*="/inbox]:has(svg),
         .top-nav__right a[href*="/users/"][href*="/conversations"]:has(svg)
       attribute: "href"
       optional: true
@@ -431,21 +441,22 @@ search:
         {{
           re_replace
           .Result.details
-          "https://seedpool\.org/torrents/"
-          "https://seedpool.org/torrents/download/"
+          "https://([^/]+)/torrents/"
+          "https://$1/torrents/download/"
         }}
     seeders:
       # 1. site-wide user data: the number currently seeding torrents
       # 2. user torrent history: the number of seeders for the torrent
       selector: >-
-        .ratio-bar__seeding a[href$="/active"],
+        .ratio-bar__seeding a[href*="/users/"][href*="/active"],
         .user-torrents__seeders
     leechers:
-      # 1. site-wide user data: the number currently downloading torrents,
-      #    not available in UNIT3d top navigation
+      # 1. site-wide user data: the number currently downloading torrents
       # 2. user torrent history: the number of seeders for the torrent
       selector: >-
+        .ratio-bar__leeching a[href$="/active"],
         .user-torrents__leechers
+      # Seedpool omits this from top navigation:
       optional: true
     grabs:
       # 1. site-wide user data: the total number of torrents grabbed by the user,
@@ -455,9 +466,10 @@ search:
         .user-torrents__times
       optional: true
     size:
-      # 1. site-wide user data: the download buffer available for their current ratio
-      # 2. user torrent history: the total size of the torrent's files
+      # 1-2. site-wide user data: the download buffer available for their current ratio
+      # 3. user torrent history: the total size of the torrent's files
       selector: >-
+        .ratio-bar__buffer,
         .ratio-bar__ratio a[title*="Buffer"],
         .user-torrents__size
     date:
@@ -498,10 +510,11 @@ search:
       # reward.
       text: "\
         {\n
-          \"ratio\": {{ .Result._siteUserRatio }},\n
+          \"ratio\": {{ if .Result._siteUserRatio }}true{{ else }}null{{ end }},\n
           \"uploaded\": \"{{ .Result._siteUserUploaded }}\",\n
           \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",\n
           \"bonusPoints\": {{ .Result._siteUserBonusPoints }},\n
+          \"tokens\": {{ .Result._siteUserTokens }},\n
           \"notificationsNew\": \
         {{ if .Result._siteUserNotificationsNew }}true{{ else }}false{{ end }},\n
           \"messagesNew\": \
