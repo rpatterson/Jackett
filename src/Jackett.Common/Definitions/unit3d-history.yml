@@ -156,15 +156,17 @@ search:
       selector: >-
         .ratio-bar__ratio a:not([title*="Buffer"])
       filters:
-        - name: "regexp"
-          args: >-
-            ([0-9.]+) +[0-9]+
+        - name: "replace"
+          args: ["∞", "Infinity"]
+        # Seedpool includes a ` 1` after the ratio, mimicking `#:1` ratio notation:
+        - name: "re_replace"
+          args: ["([0-9.]+) +.+", "$1"]
       optional: true
     _siteUserMinimumRatio:
       # Minimum site-wide user ratio:
       case:
-        'meta[name="_base_url"][content^="https://upscalevault.com"]': 0.5
-        'meta[name="_base_url"][content^=""https://seedpool.org"]': 1.0
+        'a.top-nav__username[href^="https://upscalevault.com"]': 0.5
+        'a.top-nav__username[href^="https://seedpool.org"]': 1.0
       optional: true
       # The UNIT3D default is 0.4:
       # https://github.com/HDInnovations/UNIT3D/blob/master/config/other.php#L112
@@ -174,10 +176,10 @@ search:
       # doesn't match and the ratio is sufficient. If this field is empty, then it
       # *does* match and the ratio is too low:
       case:
-        'meta[name="_base_url"][content^="https://upscalevault.com"]': >-
+        'a.top-nav__username[href^="https://upscalevault.com"]': >-
           {{ re_replace .Result._siteUserRatio "^0\.[0-4][0-9]+" "" }}
-        'meta[name="_base_url"][content^=""https://seedpool.org"]': >-
-          {{ re_replace .Result._siteUserRatio "^0(\.[0-9]+|)" "" }}
+        'a.top-nav__username[href^="https://seedpool.org"]': >-
+          {{ re_replace .Result._siteUserRatio "^8(\.[0-9]+|)" "" }}
       optional: true
       default: >-
         {{ re_replace .Result._siteUserRatio "^0\.[0-3][0-9]+" "" }}
@@ -509,7 +511,7 @@ search:
         .user-torrents__ratio span:nth-child(3)
       filters:
         - name: "replace"
-          args: ["INF", "null"]
+          args: ["INF", "Infinity"]
       optional: true
       # 1. site-wide user data: the minimum required site-wide ratio for the user
       default: >-
@@ -533,8 +535,10 @@ search:
       # reward.
       text: "\
         {\n
-          \"ratio\": {{ if .Result._siteUserRatio }}\
-        {{ .Result._siteUserRatio }}{{ else }}null{{ end }},\n
+          \"XXX_siteUserMinimumRatio\": {{ .Result._siteUserMinimumRatio }},\n
+          \"XXX_siteUserRatioSufficient\": {{ .Result._siteUserRatioSufficient }},\n
+          \"XXXminimumratio\": {{ .Result.minimumratio }},\n
+          \"ratio\": {{ .Result._siteUserRatio }},\n
           \"uploaded\": \"{{ .Result._siteUserUploaded }}\",\n
           \"downloaded\": \"{{ .Result._siteUserDownloaded }}\",\n
           \"bonusPoints\": {{ .Result._siteUserBonusPoints }},\n
@@ -546,8 +550,8 @@ search:
           \"hnrsURL\": \"{{ .Result.download }}?unsatisfied=include\
         &active=exclude&sortField=created_at&sortDirection=desc\",\n
           \"alerts\": \"\
-        {{ if and (.Result._siteUserRatio) (eq .Result._siteUserRatioSufficient \"\") }}\
-        ratio < {{ .Result.minimumratio }}, {{ else }}{{ end }}\
+        {{ if .Result._siteUserRatioSufficient }}\
+        {{ else }}ratio < {{ .Result._siteUserMinimumRatio }}, {{ end }}\
         {{ if .Result._siteUserNotificationsNew }}new notification, {{ else }}{{ end }}\
         {{ if .Result._siteUserMessagesNew }}new message{{ else }}{{ end }}\
         \"
